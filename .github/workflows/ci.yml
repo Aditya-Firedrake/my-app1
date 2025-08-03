@@ -1,0 +1,45 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [user-service, product-service, order-service, notification-service, api-gateway]
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Test ${{ matrix.service }}
+        run: |
+          cd ${{ matrix.service }}
+          if [ -f "pom.xml" ]; then
+            # Java service
+            mvn test
+          elif [ -f "package.json" ]; then
+            # Node.js service
+            npm ci
+            npm test
+          elif [ -f "requirements.txt" ]; then
+            # Python service
+            pip install -r requirements.txt
+            pip install pytest pytest-asyncio
+            pytest tests/ -v
+          fi
+
+  build:
+    runs-on: ubuntu-latest
+    needs: test
+    
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build Docker images
+        run: |
+          docker-compose build 
